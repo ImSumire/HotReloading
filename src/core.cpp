@@ -93,6 +93,7 @@ void hot() {
     else {
         if (GetFileModTime(path) > prev) {
             cooldown = 4;
+            // printf("Changes detected!\n");
         }
     }
 }
