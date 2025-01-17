@@ -6,8 +6,6 @@
 #include <dlfcn.h>
 #include <raylib.h>
 
-#include "common.hpp"
-
 
 /*
     Keybinds:
@@ -17,6 +15,7 @@
 
 */
 
+typedef void* State;
 
 static State state = { 0 };
 
@@ -112,7 +111,9 @@ int main() {
     init(&state);
 
     while (!WindowShouldClose()) {
+        // Automatic hot-reloading
         hot();
+
         update(&state);
         render(&state);
     }
