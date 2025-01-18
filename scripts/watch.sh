@@ -3,8 +3,9 @@
 WATCHED="src/lib.cpp"
 LAST=$(stat -c %Y "$WATCHED")
 DELAY=0.02
+COOLDOWN=4
 
-FULL_DELAY=$(echo "4 * 0.01666666 + $DELAY + 0.1" | bc -l)
+FULL_DELAY=$(echo "$COOLDOWN * 0.01666666 + $DELAY + 0.1" | bc -l)
 
 printf "Watching \033[4m$WATCHED\033[0m! \033[30mApproximate update delay: 0$FULL_DELAY seconds\033[0m\n"
 

@@ -29,52 +29,71 @@ void (*drop)(State*) = nullptr;
 
 long prev = 0;
 
-bool reload() {
-    printf("\x1b[30mReloading library...\x1b[0m");
+
+void reload() {
+    bool valid = true;
+
+    printf("\n\x1b[30m 𐬽 Reloading library...\x1b[0m\n");
     fflush(stdout);
 
-    update = nullptr;
-    if (lib) {
-        dlclose(lib);
+    if (lib) dlclose(lib);
+
+    void* temp_lib = dlopen(path, RTLD_NOW);
+    if (!temp_lib) {
+        printf(
+            "\x1b[31m ✘\x1b[0;30m Couln't load library: %s\x1b[0m\n",
+            dlerror()
+        );
+        return;
     }
+    lib = temp_lib;
 
-    lib = dlopen(path, RTLD_NOW);
-
-    if (!lib) {
-        fprintf(stderr, "\nCouln't load library: %s\n", dlerror());
-        return false;
+    void (*tmp_init)(State *) = (void (*)(State*)) dlsym(lib, "init");
+    if (!tmp_init) {
+        valid = false;
+        printf(
+            "\x1b[31m ✘\x1b[0;30m Couln't load init(): %s\x1b[0m\n",
+            dlerror()
+        );
     }
+    init = tmp_init;
 
-    init = (void (*)(State*)) dlsym(lib, "init");
-    if (!init) {
-        fprintf(stderr, "\nCouln't load init(): %s\n", dlerror());
-        return false;
+    void (*tmp_update)(State *) = (void (*)(State*)) dlsym(lib, "update");
+    if (!tmp_update) {
+        valid = false;
+        printf(
+            "\x1b[31m ✘\x1b[0;30m Couln't load update(): %s\x1b[0m\n",
+            dlerror()
+        );
     }
+    update = tmp_update;
 
-    update = (void (*)(State*)) dlsym(lib, "update");
-    if (!update) {
-        fprintf(stderr, "\nCouln't load update(): %s\n", dlerror());
-        return false;
+    void (*tmp_render)(State *) = (void (*)(State*)) dlsym(lib, "render");
+    if (!tmp_render) {
+        valid = false;
+        printf(
+            "\x1b[31m ✘\x1b[0;30m Couln't load render(): %s\x1b[0m\n",
+            dlerror()
+        );
     }
+    render = tmp_render;
 
-    render = (void (*)(State*)) dlsym(lib, "render");
-    if (!render) {
-        fprintf(stderr, "\nCouln't load render(): %s\n", dlerror());
-        return false;
+    void (*tmp_drop)(State *) = (void (*)(State*)) dlsym(lib, "drop");
+    if (!tmp_drop) {
+        valid = false;
+        printf(
+            "\x1b[31m ✘\x1b[0;30m Couln't load drop(): %s\x1b[0m\n",
+            dlerror()
+        );
     }
+    drop = tmp_drop;
 
-    drop = (void (*)(State*)) dlsym(lib, "drop");
-    if (!drop) {
-        fprintf(stderr, "\nCouln't load drop(): %s\n", dlerror());
-        return false;
+    if (valid) {
+        puts("\x1b[32m ✓\x1b[0m \x1b[30mReloaded!\x1b[0m");
+        fflush(stdout);
     }
-
-    puts("\x1b[32m ✓\x1b[0m");
-    fflush(stdout);
 
     prev = GetFileModTime(path);
-
-    return true;
 }
 
 void hot() {
@@ -101,9 +120,7 @@ void hot() {
 int main() {
     path = strdup("dist/libhot.so");
 
-    if (!reload()) {
-        return 1;
-    }
+    reload();
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 720, "Hot Reloading [example]");
@@ -115,15 +132,28 @@ int main() {
         // Automatic hot-reloading
         hot();
 
-        update(&state);
-        render(&state);
+        if (update) update(&state);
+        
+        if (render) {
+            render(&state);
+        }
+        else {
+            BeginDrawing();
+                ClearBackground((Color) { 20, 20, 20, 255 });
+                DrawText(
+                    "Library failed to load properly...",
+                    20,
+                    20,
+                    24,
+                    WHITE
+                );
+            EndDrawing();
+        }
     }
 
-    drop(&state);
+    if (drop) drop(&state);
 
-    if (lib) {
-        dlclose(lib);
-    }
+    if (lib) dlclose(lib);
 
     CloseWindow();
 
